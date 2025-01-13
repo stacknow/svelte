@@ -1,5 +1,5 @@
-# Stage 1: Build the SvelteKit application
-FROM node:18-slim AS build
+# Stage 1: Build the application
+FROM node:18-slim AS builder
 
 # Set the working directory
 WORKDIR /app
@@ -14,14 +14,21 @@ COPY . .
 # Build the SvelteKit app
 RUN npm run build
 
-# Stage 2: Serve the application with Nginx
-FROM nginx:stable-alpine
+# Stage 2: Run the application
+FROM node:18-slim AS server
 
-# Copy the built application to Nginx's HTML directory
-COPY --from=build /app/build /usr/share/nginx/html
+# Set the working directory
+WORKDIR /app
 
-# Expose port 80
-EXPOSE 80
+# Copy the built application from the builder stage
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/package*.json ./
 
-# Start the Nginx server
-CMD ["nginx", "-g", "daemon off;"]
+# Install only production dependencies
+RUN npm install --only=production
+
+# Expose the port the app runs on
+EXPOSE 3000
+
+# Command to start the application
+CMD ["node", "build"]
